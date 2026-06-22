@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 170" role="img" aria-label="dev953">
+  <defs>
+    <linearGradient id="bgL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16386B"/><stop offset="1" stop-color="#1D63E9"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(10,20) scale(0.254)">
+    <rect width="512" height="512" rx="116" fill="url(#bgL)"/>
+    <g stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="9" stroke-linecap="round" fill="none">
+      <path d="M170 170 L344 256"/><path d="M170 256 L344 256"/><path d="M170 342 L344 256"/>
+    </g>
+    <g fill="#FFFFFF">
+      <circle cx="170" cy="170" r="25" fill-opacity="0.7"/>
+      <circle cx="170" cy="256" r="25" fill-opacity="0.92"/>
+      <circle cx="170" cy="342" r="25" fill-opacity="0.7"/>
+    </g>
+    <circle cx="352" cy="256" r="52" fill="#FFFFFF"/>
+    <path d="M329 256 l16 17 l28 -33" stroke="#1D63E9" stroke-width="13" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="176" y="108" font-family="'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif" font-size="92" font-weight="800" letter-spacing="-3" fill="#0F172A">dev<tspan fill="#1D63E9">953</tspan></text>
+  <text x="180" y="140" font-family="'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif" font-size="20" font-weight="600" letter-spacing="0.3" fill="#5B6678">Autonomous multi-agent coding</text>
+</svg>
