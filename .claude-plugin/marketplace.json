@@ -1,0 +1,14 @@
+{
+  "name": "dev953",
+  "owner": {
+    "name": "GRU953",
+    "email": "225374119+GRU-953@users.noreply.github.com"
+  },
+  "plugins": [
+    {
+      "name": "dev953",
+      "source": ".",
+      "description": "Type a plain idea, get a finished project shipped privately to your GitHub \u2014 an autonomous multi-agent run from brainstorm to publish."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+# fingerprints.txt — dev953 de-attribution pattern list.
+#
+# This is DATA, NOT a scanner. It carries no logic and runs nothing. The publish
+# skill (skills/publish/SKILL.md) reads these patterns and applies a MECHANICAL
+# regex/string substitution across the throwaway temp clone, producing a diff —
+# never a generative rewrite. The secret/PII scan logic lives ONCE in the hook
+# (hooks/scan.sh); this file is unrelated to that and never duplicates it.
+#
+# FORMAT: one rule per non-comment, non-blank line.
+#   <case-insensitive extended-regex>[<TAB><replacement>]
+# The pattern runs to the first TAB (or to end-of-line if there is no TAB). A
+# bare pattern with NO TAB means "delete the matched text". An optional TAB
+# introduces a literal replacement string when one is wanted instead of deletion.
+# Every rule here is delete-only, so none carries a TAB. Whole lines that become
+# empty after substitution (e.g. a co-author trailer) are dropped by the skill.
+# Patterns are applied to file contents, comments, README/docs, package metadata,
+# dotfiles/CI, and .git author/committer fields. Lines beginning with '#' and
+# blank lines are ignored.
+
+# --- co-author / generated-by trailers (whole-line, dropped) ------------------
+^[[:space:]]*Co-authored-by:.*$
+^[[:space:]]*Co-Authored-By:.*$
+^[[:space:]]*(>|//|#)?[[:space:]]*🤖[[:space:]]*Generated with.*$
+^[[:space:]]*(>|//|#)?[[:space:]]*Generated with \[?Claude.*$
+^[[:space:]]*(>|//|#)?[[:space:]]*This (commit|change|file|code) was (generated|written|authored) by .*(Claude|Anthropic).*$
+
+# --- robot emoji --------------------------------------------------------------
+🤖
+
+# --- model names --------------------------------------------------------------
+\bClaude (Opus|Sonnet|Haiku)( [0-9][0-9.]*)?\b
+\bclaude-(opus|sonnet|haiku)-[0-9][0-9a-z.-]*\b
+\b(us\.)?anthropic\.claude-[0-9a-z.:-]+\b
+\bclaude-[0-9][0-9a-z.-]*\b
+\b(Opus|Sonnet|Haiku) [0-9][0-9.]*\b
+
+# --- Claude / Anthropic brand (after model names so longer matches win) -------
+\b@anthropic-ai/[A-Za-z0-9._-]+\b
+\bClaude Code\b
+\bAnthropic, PBC\b
+\bAnthropic\b
+\bclaude\.ai\b
+\bclaude\b
+
+# --- dev953 product + tool dotfile references ---------------------------------
+\bdev953\b
+\.dev953\b
+
+# --- agent role names (this swarm's workers) ----------------------------------
+\b(builder|reviewer|tester|minimalist|publisher) agent\b
+\bOrchestrator\b
