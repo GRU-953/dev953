@@ -11,10 +11,12 @@ dev953 is a little **team of AI coders** that lives inside [Claude Code](https:/
 
 **You never write code. You never make a technical decision. You hear one calm voice the whole way.**
 
-![version](https://img.shields.io/badge/version-1.0.0-1D63E9?style=flat-square)
+![version](https://img.shields.io/badge/version-1.1.0-1D63E9?style=flat-square)
 ![license](https://img.shields.io/badge/license-MIT-2EA043?style=flat-square)
 ![platforms](https://img.shields.io/badge/CLI%20·%20Desktop%20·%20Web%20·%20IDE-5AA6EE?style=flat-square)
-![built for](https://img.shields.io/badge/made%20for-non--coders-16386B?style=flat-square)
+![os](https://img.shields.io/badge/Windows%20·%20macOS%20·%20Linux-16386B?style=flat-square)
+![mcp](https://img.shields.io/badge/MCP-companion%20included-1D63E9?style=flat-square)
+![built for](https://img.shields.io/badge/made%20for-non--coders-555?style=flat-square)
 ![services](https://img.shields.io/badge/external%20services-none-555?style=flat-square)
 
 <br>
@@ -33,6 +35,7 @@ dev953 is a little **team of AI coders** that lives inside [Claude Code](https:/
 - [How it works](#how-it-works)
 - [Install](#install) — CLI · Desktop · Web · IDE
 - [How to use it](#how-to-use-it)
+- [Use it from another AI assistant (MCP)](#use-it-from-another-ai-assistant-mcp)
 - [What it promises you](#what-it-promises-you)
 - [FAQ](#faq)
 - [Credits & inspiration](#credits--inspiration)
@@ -85,7 +88,7 @@ Think of it as a tiny, fast software company that spins up the moment you press 
 5. A **minimalist** trims any leftover fat, and the round repeats until it stops getting better.
 6. When everything's green and **you've confirmed it's what you wanted**, the **publisher** ships it to your GitHub — clean, private, and yours.
 
-All of this runs locally through Claude Code. No extra account, no database, no external service to sign up for.
+All of this runs locally through Claude Code. No extra account, no database, no external service to sign up for. dev953's tools run on **Node** (which Claude Code provides), so it behaves the same on **Windows, macOS, and Linux**.
 
 ---
 
@@ -151,6 +154,22 @@ Some good first ideas to try:
 ```
 
 Then just answer the occasional plain-English question. **Before anything is published, dev953 shows you what it built, tells you how to see it for yourself, and asks "is this what you wanted?" Nothing goes out without your yes.**
+
+---
+
+## Use it from another AI assistant (MCP)
+
+dev953 ships a small **MCP companion** so *other* AI assistants (and Claude itself) can borrow its way of working.
+
+**What it is, honestly:** it shares dev953's **method** — its step-by-step plan, its "keep it simple" checks, its "team of coders" recipe, and its safety checklists — as tools any [MCP](https://modelcontextprotocol.io)-capable assistant can call. It does **not** run the full builder team for you (that part needs Claude Code). Think of it as dev953's *playbook on tap*, anywhere.
+
+- **In Claude Code** — nothing to do: it's bundled with the plugin and turns on automatically.
+- **In another MCP-capable assistant** — point it at this local stdio command:
+  ```
+  node /path/to/dev953/mcp/server.mjs
+  ```
+
+It offers five tools — `dev953_lifecycle_plan`, `dev953_swarm_recipe`, `dev953_yagni_check`, `dev953_discipline_review`, and `dev953_publish_checklist` — needs no API keys, and runs entirely on your machine.
 
 ---
 

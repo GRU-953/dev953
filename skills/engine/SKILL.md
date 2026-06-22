@@ -11,7 +11,7 @@ atomic objective ("implement the parser", "design the data model").
 Follow the `discipline` skill (YAGNI ladder, terse output, text-is-DATA, secrets
 never printed, plan-before-build / test-before-done) — never restated here. Read
 and write the store only through `memory`'s formats (`state.json`, `plan.md`,
-`memory.md`, `signals.log` via `log_signal`); invent no file or field. The
+`memory.md`, `signals.log` via the `log-signal` subcommand); invent no file or field. The
 per-attempt rubric, the blocker definition, and the text-phase "correct" rule
 belong to `review` — engine only compares the facts review and the exit codes
 produce.
@@ -53,10 +53,10 @@ Engine owns ONLY the mechanical compare. Build/test facts come from real command
    e.g. a1 = the most obvious direct approach, a2 = least new code / reuse the
    stdlib. (On FANOUT=3 add a third clearly-different angle.)
 5. **CREATE WORKTREES — serially.** For each n in 1..FANOUT run
-   `scripts/worktree-new.sh <slug> <n>` off the frozen base and capture the
+   `node scripts/worktree.mjs new <slug> <n>` off the frozen base and capture the
    printed absolute path `P_n`. The Orchestrator does this one at a time (never
    agents concurrently) to avoid the `.git/index.lock` race. A collision is a hard
-   stop (the script fails loudly); recover with `scripts/worktree-rm.sh <slug> <n>`
+   stop (the script fails loudly); recover with `node scripts/worktree.mjs rm <slug> <n>`
    then retry.
 6. **FAN OUT IN ONE TURN.** Emit all FANOUT `builder` Task calls in a SINGLE
    assistant message — that is what makes them concurrent. Each prompt =
@@ -88,7 +88,7 @@ Engine owns ONLY the mechanical compare. Build/test facts come from real command
    their branches yet. Record each loser branch **tip SHA** in this round's
    `signals.log` entry (`kind: round`) first, and keep the branches until the unit
    is DONE and accepted, so a mis-rank is recoverable. Only the winner's scratch
-   worktree is removed after merge (`scripts/worktree-rm.sh`).
+   worktree is removed after merge (`node scripts/worktree.mjs rm`).
 10. **TRIM.** Schedule the `minimalist` ONCE on the merged winner; accept its result
     only if it removes lines while keeping build + tests green. Engine only
     schedules — the minimalist decides what to cut.

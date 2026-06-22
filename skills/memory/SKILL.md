@@ -1,6 +1,6 @@
 ---
 name: memory
-description: The single source of truth for the .dev953/ store. Documents the exact format of every store file and the read/write/append/resume/locking protocol; ships lease.sh (run_lock + log_signal). Every other component reads and writes the store through this skill and invents no format or lock of its own.
+description: The single source of truth for the .dev953/ store. Documents the exact format of every store file and the read/write/append/resume/locking protocol; ships lease.mjs (the run-lock and log-signal subcommands). Every other component reads and writes the store through this skill and invents no format or lock of its own.
 ---
 
 # memory — the .dev953/ store
@@ -54,7 +54,7 @@ The run cursor. Written **temp file then `mv -f`** (atomic rename). Exact fields
 ```
 
 - `phase` ∈ `brainstorm | ideate | design | plan | build | test | fix | update | publish | done`.
-- `gate_marker` is the Orchestrator-owned marker the `gate.sh` hook validates, so
+- `gate_marker` is the Orchestrator-owned marker the `gate.mjs` hook validates, so
   the control file cannot be rewritten to disable the gate.
 
 ### state.json.bak — writer: Orchestrator
@@ -74,7 +74,7 @@ winner blocks headed `### <iso> — <title>`. Plus a flat structure map of
 `path — one-line purpose` lines (the minimalist maintains these). This is the only
 durable memory; there is no separate idea/decisions/structure split.
 
-### signals.log — writer: any worker, via `log_signal`
+### signals.log — writer: any worker, via the `log-signal` subcommand
 Append-only **JSONL**, one object per line. Exact fields and order:
 
 ```json
@@ -82,17 +82,17 @@ Append-only **JSONL**, one object per line. Exact fields and order:
 ```
 
 - `kind` ∈ `claimed | done | handoff | blocked | round`.
-- Written **only** through `log_signal` (below), which serializes appends with a
+- Written **only** through the `log-signal` subcommand (below), which serializes appends with a
   microsecond `mkdir` guard. The Orchestrator reads only the tail since its cursor.
 
 ### test-result.json — writer: tester
 ```json
 {"run_id":"...","status":"pass","ts":"<iso>"}
 ```
-`status` ∈ `pass | fail | absent`. The `gate.sh` hook requires `status == pass`
+`status` ∈ `pass | fail | absent`. The `gate.mjs` hook requires `status == pass`
 **and** `run_id == state.run_id` before a test-gated phase may finish.
 
-### scan-report.json — writer: scan hook (`scan.sh`)
+### scan-report.json — writer: scan hook (`scan.mjs`)
 A deny receipt only, redacted to type+location — **no value bytes**:
 ```json
 {"run_id":"...","clean":true,"findings":[{"type":"...","file":"...","line":0}]}
@@ -137,7 +137,8 @@ beyond living under `work/`.
 
 ### run.lock — writer: the `/dev953` command (run lock)
 A directory created by `mkdir` (the atomic primitive) at `/dev953` entry. If it
-exists, another run is live → refuse in plain voice. Managed by `run_lock` below.
+exists, another run is live → refuse in plain voice. Managed by the `run-lock`
+subcommand below.
 
 ### .gitignore — writer: the `/dev953` command (once)
 Contents are exactly `*`. Written at store CREATION, not at publish.
@@ -152,7 +153,7 @@ Contents are exactly `*`. Written at store CREATION, not at publish.
   target so a reader never sees a partial file; copy the prior good version to
   `state.json.bak` first.
 - **Append-only files.** `memory.md` and `handoffs.md` are appended by their one
-  writer. `signals.log` is appended **only** through `log_signal`.
+  writer. `signals.log` is appended **only** through the `log-signal` subcommand.
 - **Markers.** Before an expensive/irreversible step, check the matching
   `done/<milestone>.json`; act only if absent, then write the marker.
 - **Resume / idempotency.** On `/dev953`: if `.dev953/` is absent → fresh (the
@@ -163,27 +164,26 @@ Contents are exactly `*`. Written at store CREATION, not at publish.
   recorded round); the frozen-base + cherry-pick merge and the `est_marker_usd`
   spend marker make a mid-round crash safe to resume.
 
-## Locking — lease.sh
+## Locking — lease.mjs
 
-`lease.sh` is the **only** locking code. There is exactly **one lock** (the run
+`lease.mjs` is the **only** locking code. There is exactly **one lock** (the run
 lock) plus the append guard. **No per-file leases, no TTL, no reclaim race** —
 worktrees isolate every build edit and the shared store files are single-writer or
-atomic-rewrite. It exposes EXACTLY two functions; source it, then call them:
+atomic-rewrite. It exposes EXACTLY two subcommands; call them via node:
 
 ```sh
-. skills/memory/lease.sh
-run_lock acquire        # mkdir .dev953/run.lock; REFUSES (nonzero) if it exists
-run_lock release        # remove the run lock
-log_signal <agent> <kind> <ref> <note>   # append one JSONL line to signals.log
+node skills/memory/lease.mjs run-lock acquire    # mkdir .dev953/run.lock; REFUSES (nonzero) if it exists
+node skills/memory/lease.mjs run-lock release    # remove the run lock
+node skills/memory/lease.mjs log-signal <agent> <kind> <ref> <note>   # append one JSONL line to signals.log
 ```
 
-- Both functions resolve the store as `$PWD/.dev953`, **sanitize** any ref to
+- Both subcommands resolve the store as `$PWD/.dev953`, **sanitize** any ref to
   `^[A-Za-z0-9_.-]+$`, and **verify** the target is a normalized direct child of
   `.dev953/` (rejecting `..` and the store root itself) **before** any `mkdir`/`rm`.
-- `run_lock acquire` refuses when `.dev953/run.lock` already exists (the run lock
+- `run-lock acquire` refuses when `.dev953/run.lock` already exists (the run lock
   closes the double-run / double-repo TOCTOU). A fresh run clears a leftover lock
   from a crashed prior run — that is the `/dev953` command's job, not this skill's.
-- `log_signal` appends exactly one `{ts,agent,kind,ref,note}` JSONL line under a
+- `log-signal` appends exactly one `{ts,agent,kind,ref,note}` JSONL line under a
   **microsecond `mkdir` guard** with spin + backoff (no timed force-remove); the
   `note` is JSON-escaped and treated as DATA. `agent`/`kind`/`ref` must match the
   sanitizer; `kind` should be one of the enum values above.

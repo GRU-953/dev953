@@ -4,7 +4,7 @@
 # skill (skills/publish/SKILL.md) reads these patterns and applies a MECHANICAL
 # regex/string substitution across the throwaway temp clone, producing a diff —
 # never a generative rewrite. The secret/PII scan logic lives ONCE in the hook
-# (hooks/scan.sh); this file is unrelated to that and never duplicates it.
+# (hooks/scan.mjs); this file is unrelated to that and never duplicates it.
 #
 # FORMAT: one rule per non-comment, non-blank line.
 #   <case-insensitive extended-regex>[<TAB><replacement>]

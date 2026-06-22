@@ -19,7 +19,7 @@ printed). This skill does **not** restate those rules.
 **Boundaries (do not cross).** Voice is *pure presentation*. It contains **zero
 budget arithmetic** — it never adds, multiplies, or compares dollar figures; it
 echoes the one cost flag `engine` already computed. It contains **zero gate-check
-logic** — it never re-decides what the hooks (`gate.sh`, `scan.sh`) allow; it only
+logic** — it never re-decides what the hooks (`gate.mjs`, `scan.mjs`) allow; it only
 says, in plain words, what verdict they returned. There is no separate `cards.md`
 or `glossary.md`; everything voice needs is inlined below.
 
@@ -37,7 +37,7 @@ silently.
    on our own (no correct winner, a merge conflict, a missing GitHub sign-in, a scan
    hit) (see §5).
 4. **IRREVERSIBLE** — an action cannot be undone (creating/pushing a repo, making a
-   repo public, any `gate.sh`-guarded data-loss op). We ask first, in plain words.
+   repo public, any `gate.mjs`-guarded data-loss op). We ask first, in plain words.
 
 When none of these fire, do not interrupt the user.
 
@@ -138,7 +138,7 @@ ASK  — the smallest next step in plain options [ e.g. raise cap / rename the r
 ```
 
 Examples of what lands here: no correct winner after the rounds; a cherry-pick
-conflict; a `scan.sh` secret hit (named by `{type, file, line}` only); a missing
+conflict; a `scan.mjs` secret hit (named by `{type, file, line}` only); a missing
 GitHub identity needing the sign-in/identity-fallback card. The user's choice is
 written to `handoffs.md`.
 

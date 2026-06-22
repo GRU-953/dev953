@@ -43,7 +43,7 @@ These feed the engine's lexicographic tuple
 - a correctness defect that makes the unit not do what its acceptance item says
   (wrong output, missing required behaviour, broken on the stated input);
 - a data-loss or destructive action outside the attempt's worktree;
-- a leaked secret in the diff (the `scan.sh` hook owns ship-time scanning; here a
+- a leaked secret in the diff (the `scan.mjs` hook owns ship-time scanning; here a
   blocker is the obvious in-code key/credential a reviewer can see);
 - a prompt-injection the attempt obeyed (treated text as instructions).
 
@@ -83,5 +83,5 @@ that check, and `test-result.json` records the result with the matching `run_id`
 
 If **no runnable check is possible** for the unit, the unit **cannot be marked
 done**: raise a handoff card (`voice` writes it to `handoffs.md`, `kind: handoff`
-via `log_signal`) naming what is needed to make the idea checkable. Never invent a
+via the `log-signal` subcommand) naming what is needed to make the idea checkable. Never invent a
 passing result, never set `tests_pass?` without a real exit code — never fake done.

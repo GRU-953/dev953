@@ -70,11 +70,11 @@ The lifecycle ordering is mandatory and self-enforced:
 
 ## 6. Gate semantics (enforced by the two hooks)
 
-This skill defines the *semantics*; `hooks/gate.sh` and `hooks/scan.sh` are their
+This skill defines the *semantics*; `hooks/gate.mjs` and `hooks/scan.mjs` are their
 mechanical enforcement, applied uniformly to the Orchestrator AND every worker so
 no prompt-injected agent can talk past them. The semantics:
 
-- **Plan/test gate (`gate.sh`).** Pre-build phases DENY source writes outside
+- **Plan/test gate (`gate.mjs`).** Pre-build phases DENY source writes outside
   `.dev953/` and `docs/`. Publish commands are DENIED unless `phase==publish`.
   Irreversible ops (`rm -rf`, `git reset --hard`, `git clean -fdx`, force-push,
   content-overwrite) are DENIED unless a plain-English user yes has been recorded.
@@ -85,7 +85,7 @@ no prompt-injected agent can talk past them. The semantics:
   `.dev953/` and `docs/` writes and denies publish/irreversible ops. The gate also
   validates `state.json`'s `gate_marker`, so the control file cannot be rewritten
   to disable the gate.
-- **Pre-publish scan (`scan.sh`).** Push-capable commands trigger a secret scan of
+- **Pre-publish scan (`scan.mjs`).** Push-capable commands trigger a secret scan of
   the would-ship set; it blocks on high-signal secrets and key files and refuses to
   ship if `.dev953/` is staged or tracked. Findings are redacted to
   `{type, file, line}` (rule 4).

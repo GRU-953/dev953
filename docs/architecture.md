@@ -56,21 +56,21 @@ Every capability appears in exactly one place.
 ### Skills
 
 **`engine`** — type: skill — files: `skills/engine/SKILL.md`,
-`skills/engine/scripts/worktree-new.sh`, `skills/engine/scripts/worktree-rm.sh`
+`skills/engine/scripts/worktree.mjs`
 - The fan-out / compete / score / winner / revert / repeat loop and the lifecycle
   phase driver, written as prose the Orchestrator follows. Owns **only the
   mechanical comparison** of facts it does not invent: `builds?` and `tests_pass?`
   come from real command exit codes (never agent prose); `lines` comes from
   `git diff --numstat`. Defines FANOUT (default 2, up to 3 on a budget raise),
   ROUND_CAP=3, the single stop rule, the frozen-base merge, and the budget gate.
-- Two POSIX scripts only. `count-lines` is folded into a one-line inline command
+- One Node script with two subcommands only. `count-lines` is folded into a one-line inline command
   (`git diff --numstat` minus a lockfile glob, non-blank only) — no separate
   script, no fragile per-language comment stripping.
-- `worktree-new.sh <slug> <n>`: create one isolated worktree off the frozen base
+- `node scripts/worktree.mjs new <slug> <n>`: create one isolated worktree off the frozen base
   SHA at `.dev953/work/<slug>/a<n>`, print its absolute path. **Fails loudly on a
   collision** (no silent force-remove); recovery is the loop's job via
-  `worktree-rm.sh`.
-- `worktree-rm.sh <slug> <n>`: `git worktree remove --force` + `git branch -D`,
+  `node scripts/worktree.mjs rm`.
+- `node scripts/worktree.mjs rm <slug> <n>`: `git worktree remove --force` + `git branch -D`,
   no-op-safe on an already-removed worktree. Only the Orchestrator calls these,
   serially — never agents concurrently (kills the `.git/index.lock` race).
 
@@ -85,12 +85,12 @@ Every capability appears in exactly one place.
 - Owns the *semantics* of the two gates; the two hooks below are their mechanical
   enforcement.
 
-**`memory`** — type: skill — files: `skills/memory/SKILL.md`, `skills/memory/lease.sh`
+**`memory`** — type: skill — files: `skills/memory/SKILL.md`, `skills/memory/lease.mjs`
 - The **only** place the read/write/append/resume/locking protocol is written.
   Owns the store FORMAT; every other component reads/writes the agreed files
   through it and invents none of its own.
-- `lease.sh` shrinks to two shipped functions: `run_lock` (acquire/release the
-  single run lock) and `log_signal` (serialized append to `signals.log`). Both
+- `lease.mjs` shrinks to two shipped subcommands: `run-lock` (acquire/release the
+  single run lock) and `log-signal` (serialized append to `signals.log`). Both
   carry the slug guard (sanitize any ref to `^[A-Za-z0-9_.-]+$`, verify the
   resulting path is a normalized child of `.dev953/` before any `mkdir`/`rm -rf`;
   never `rm -rf` an empty or unverified variable).
@@ -207,7 +207,7 @@ data model"). The Orchestrator runs this loop per unit.
 4. **FANOUT = 2** by default (3 only after a budget raise). Pick FANOUT deliberately
    different one-sentence strategy hints (e.g. a1 = most obvious direct approach,
    a2 = least new code / reuse stdlib).
-5. **CREATE WORKTREES** off the frozen base: `worktree-new.sh <slug> <n>` →
+5. **CREATE WORKTREES** off the frozen base: `node scripts/worktree.mjs new <slug> <n>` →
    capture absolute path P_n. The Orchestrator does this serially.
 6. **FAN OUT IN ONE TURN.** Emit FANOUT `builder` Task calls in a single assistant
    message (this is what makes them concurrent). Each prompt = {brief, the one hint,
@@ -266,7 +266,7 @@ serial writer of `idea.md`, `state.json`, `plan.md`, and the appender of
 | `state.json.bak` | Orchestrator | Previous good copy, kept so a corrupt/partial read (e.g. on a synced/network mount where rename atomicity is not guaranteed) can fall back. On unparseable state: narrate plainly, treat as fresh-needs-confirmation — never crash. |
 | `plan.md` | Orchestrator | Manus-style checklist: `## <phase>` + `- [ ]/[x]` steps + per-step acceptance criteria. Resume reads first unchecked step; finished phases never restart. |
 | `memory.md` | Orchestrator (append) + minimalist (structure line) | ONE durable-memory file: idea restatement at top, then append-only `### <iso> — <title>` decision/winner blocks, plus a flat `path — one-line purpose` structure map. (Replaces idea/decisions/structure split.) |
-| `signals.log` | any worker, via `log_signal` | Append-only JSONL: `{ts, agent, kind, ref, note}`, kind ∈ claimed\|done\|handoff\|blocked\|round. Serialized by a microsecond `mkdir` guard with spin+backoff (no timed force-remove). Orchestrator reads only the tail since its cursor. |
+| `signals.log` | any worker, via the `log-signal` subcommand | Append-only JSONL: `{ts, agent, kind, ref, note}`, kind ∈ claimed\|done\|handoff\|blocked\|round. Serialized by a microsecond `mkdir` guard with spin+backoff (no timed force-remove). Orchestrator reads only the tail since its cursor. |
 | `test-result.json` | tester | `{run_id, status: pass\|fail\|absent, ts}`. The gate hook requires `status==pass` AND `run_id==state.run_id`. |
 | `scan-report.json` | scan hook | Deny receipt only: `{run_id, clean, findings:[{type, file, line}]}`. **Redacted to type+location — no value bytes** for PII; last4 only for non-identifying API keys. |
 | `publish.json` | publisher (writes); Orchestrator sets flags | `{status: scanned\|history_built\|repo_created\|pushed, repo_name, visibility, license_id, repo_url, intent_confirmed, public_gate_passed}`. Explicit status enum so re-entry never re-creates or re-pushes. |
@@ -289,11 +289,12 @@ the estimated-spend marker make a mid-round crash safe to resume.
 
 `discipline` defines the gate *semantics*; **two hooks** (the only hooks) enforce
 them mechanically — uniformly on the Orchestrator AND every worker, so a
-prompt-injected agent cannot talk past them. Both share `hooks/lib.sh` (jq-optional
+prompt-injected agent cannot talk past them. They are Node scripts run via `node`
+(cross-platform: Windows/macOS/Linux). Both share `hooks/lib.mjs` (jq-optional
 JSON parse, store-path resolution, redaction). Files:
-`hooks/hooks.json`, `hooks/gate.sh`, `hooks/scan.sh`, `hooks/lib.sh`.
+`hooks/hooks.json`, `hooks/gate.mjs`, `hooks/scan.mjs`, `hooks/lib.mjs`.
 
-**Hook 1 — `gate.sh` (the plan-before-build / test-before-done gate).**
+**Hook 1 — `gate.mjs` (the plan-before-build / test-before-done gate).**
 Wired `PreToolUse` (matcher `Edit|Write|MultiEdit|Bash|NotebookEdit`) + `Stop` +
 `SubagentStop`.
 - **PreToolUse:** classify the call. In pre-build phases, DENY source writes outside
@@ -313,7 +314,7 @@ Wired `PreToolUse` (matcher `Edit|Write|MultiEdit|Bash|NotebookEdit`) + `Stop` +
   marker the gate validates, so an injected agent cannot rewrite the control file
   (which lives in the gate's own allowed zone) to disable the gate.
 
-**Hook 2 — `scan.sh` (pre-publish secret/PII scan).**
+**Hook 2 — `scan.mjs` (pre-publish secret/PII scan).**
 Wired `PreToolUse` (matcher `Bash`), internally gated to publish commands — the
 **single** place publish commands are pattern-matched. Matcher must cover BOTH
 `git push` and any `gh` push-capable command, and **fail closed** if it cannot
@@ -332,7 +333,7 @@ positively identify the command as non-push.
   refuses to ship if `.dev953/` is staged/tracked.
 
 `audit.log` is **dropped** (it was the tracing system the merge map cut). The
-deny receipt is `scan-report.json`. The `publish` skill *invokes* `scan.sh` — it
+deny receipt is `scan-report.json`. The `publish` skill *invokes* `scan.mjs` — it
 never carries a second copy of the scan logic.
 
 ---
@@ -347,7 +348,7 @@ after the user's plain-English acceptance). Each step is idempotent against the
    — never `--orphan`/branch-delete in the user's live worktree (this protects the
    self-application case and any pre-existing user git history from in-place
    destruction).
-2. **Scan** by invoking `scan.sh` on the staged tree (scan scope == push scope).
+2. **Scan** by invoking `scan.mjs` on the staged tree (scan scope == push scope).
 3. **De-attribute** mechanically (regex/string substitution from `fingerprints.txt`,
    with a diff) across file contents, comments, README/docs, package metadata,
    dotfiles/CI/lockfile-author fields, and `.git` metadata. Delete `.dev953/` and
@@ -366,12 +367,12 @@ after the user's plain-English acceptance). Each step is idempotent against the
    collision ask for a new name via voice (never push into an existing repo).
    `gh repo create <name> --private`. **Read back** `gh repo view --json visibility`
    and HARD STOP unless private. Card C confirms the push; `git push -u origin main`
-   to the fresh remote; the `scan.sh` PreToolUse hook re-scans and blocks a dirty
+   to the fresh remote; the `scan.mjs` PreToolUse hook re-scans and blocks a dirty
    push independently. On any create/push error: record it in `publish.json`, leave
    the orphan intact, emit a plain retry card. Then STOP. Visibility stays private.
 8. **Explicit public gate** (separate, opt-in, never automatic): only on an explicit
    user yes does voice present a distinct gate card ("anyone on the internet will be
-   able to see this … cannot be fully undone"). On yes: re-invoke `scan.sh`,
+   able to see this … cannot be fully undone"). On yes: re-invoke `scan.mjs`,
    re-verify identity, re-confirm the specific repo name, set `public_gate_passed`,
    then `gh repo edit --visibility public`. No code path sets `public_gate_passed`
    without that card.
@@ -407,8 +408,8 @@ identity-fallback, public-gate, error-retry) and the one fact each conveys.
    TOCTOU. The signal-append `mkdir` guard remains (microsecond, spin+backoff).
 
 5. **The gate / scan defined once.** The plan-before-build / test-before-done gate
-   logic lives in `gate.sh` + `discipline` (memory only exposes the read surface,
-   voice only renders the verdict). The secret/PII scan logic lives in `scan.sh`
+   logic lives in `gate.mjs` + `discipline` (memory only exposes the read surface,
+   voice only renders the verdict). The secret/PII scan logic lives in `scan.mjs`
    (the publish skill invokes it; it carries no second copy). Each is enforced in
    exactly one place.
 
@@ -429,7 +430,7 @@ identity-fallback, public-gate, error-retry) and the one fact each conveys.
    resolver). A merge-time "no credential files in the diff" check runs before the
    winner reaches the main tree.
 
-9. **Data-loss guards strengthened.** `worktree-new.sh` fails loudly on collision
+9. **Data-loss guards strengthened.** `node scripts/worktree.mjs new` fails loudly on collision
    (no silent force-remove). Loser branches are kept (tip SHAs recorded) until the
    unit is accepted. Publish rewrites history only in a throwaway temp clone, never
    in the user's live worktree.
