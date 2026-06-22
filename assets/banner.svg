@@ -1,35 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" role="img" aria-label="dev953 — autonomous multi-agent coding">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-label="dev953 — an autonomous coding team for Claude Code">
   <defs>
-    <linearGradient id="mk" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#16386B"/><stop offset="1" stop-color="#1D63E9"/>
-    </linearGradient>
-    <style>
-      .panel { fill:#F4F7FD; stroke:#DCE4F2; }
-      .wm { fill:#0F172A; } .ac { fill:#1D63E9; }
-      .tg { fill:#33415C; } .vl { fill:#5B6678; } .dv { stroke:#DCE4F2; }
-      @media (prefers-color-scheme: dark) {
-        .panel { fill:#0D1322; stroke:#1E2A44; }
-        .wm { fill:#EAF0FB; } .ac { fill:#5AA6EE; }
-        .tg { fill:#C5D2E6; } .vl { fill:#93A4BE; } .dv { stroke:#1E2A44; }
-      }
-    </style>
+    <symbol id="sprout" viewBox="0 0 64 64">
+      <path d="M32 55 C 31.6 47 31 40 31 31" fill="none" stroke="#15A48C" stroke-width="6" stroke-linecap="round"/>
+      <path d="M31 39 C 22.5 39 18.5 32.5 19.5 24 C 28 25 31 30.5 31 39 Z" fill="#9FDBA6"/>
+      <path d="M31 33 C 39.5 33 43.5 26.5 42.5 18 C 34 19 31 24.5 31 33 Z" fill="#3FBBA5"/>
+    </symbol>
   </defs>
-  <rect class="panel" x="4" y="4" width="1272" height="392" rx="28" stroke-width="2"/>
-  <g transform="translate(580,52) scale(0.2344)">
-    <rect width="512" height="512" rx="116" fill="url(#mk)"/>
-    <g stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="9" stroke-linecap="round" fill="none">
-      <path d="M170 170 L344 256"/><path d="M170 256 L344 256"/><path d="M170 342 L344 256"/>
-    </g>
-    <g fill="#FFFFFF">
-      <circle cx="170" cy="170" r="25" fill-opacity="0.7"/>
-      <circle cx="170" cy="256" r="25" fill-opacity="0.92"/>
-      <circle cx="170" cy="342" r="25" fill-opacity="0.7"/>
-    </g>
-    <circle cx="352" cy="256" r="52" fill="#FFFFFF"/>
-    <path d="M329 256 l16 17 l28 -33" stroke="#1D63E9" stroke-width="13" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="1280" height="400" fill="#0A6E60"/>
+  <g>
+    <use href="#sprout" x="800" y="44" width="40" height="40" opacity="0.5"/>
+    <use href="#sprout" x="910" y="70" width="40" height="40" opacity="0.4"/>
+    <use href="#sprout" x="1020" y="46" width="40" height="40" opacity="0.55"/>
+    <use href="#sprout" x="1130" y="72" width="40" height="40" opacity="0.42"/>
+    <use href="#sprout" x="1228" y="50" width="40" height="40" opacity="0.5"/>
+    <use href="#sprout" x="852" y="150" width="40" height="40" opacity="0.45"/>
+    <use href="#sprout" x="965" y="172" width="40" height="40" opacity="0.55"/>
+    <use href="#sprout" x="1075" y="150" width="40" height="40" opacity="0.4"/>
+    <use href="#sprout" x="1185" y="174" width="40" height="40" opacity="0.5"/>
+    <use href="#sprout" x="808" y="262" width="40" height="40" opacity="0.42"/>
+    <use href="#sprout" x="918" y="286" width="40" height="40" opacity="0.5"/>
+    <use href="#sprout" x="1028" y="262" width="40" height="40" opacity="0.55"/>
+    <use href="#sprout" x="1138" y="288" width="40" height="40" opacity="0.4"/>
+    <use href="#sprout" x="1230" y="266" width="40" height="40" opacity="0.48"/>
+    <use href="#sprout" x="965" y="330" width="40" height="40" opacity="0.38"/>
   </g>
-  <text class="wm" x="640" y="258" text-anchor="middle" font-family="'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif" font-size="86" font-weight="800" letter-spacing="-3">dev<tspan class="ac">953</tspan></text>
-  <text class="tg" x="640" y="300" text-anchor="middle" font-family="'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif" font-size="25" font-weight="700">Type a plain idea. Get a finished project.</text>
-  <line class="dv" x1="500" y1="328" x2="780" y2="328" stroke-width="1.5"/>
-  <text class="vl" x="640" y="360" text-anchor="middle" font-family="'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif" font-size="19" font-weight="500">An autonomous team of AI coders for Claude Code — brainstorm to publish.</text>
+  <g transform="translate(72,150) scale(1.7)">
+    <path d="M32 55 C 31.6 47 31 40 31 31" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+    <path d="M31 39 C 22.5 39 18.5 32.5 19.5 24 C 28 25 31 30.5 31 39 Z" fill="#BFF0C7"/>
+    <path d="M31 33 C 39.5 33 43.5 26.5 42.5 18 C 34 19 31 24.5 31 33 Z" fill="#FFFFFF"/>
+  </g>
+  <text x="208" y="232" font-family="Figtree, system-ui, sans-serif" font-weight="700" font-size="82" letter-spacing="-1">
+    <tspan fill="#FFFFFF">dev</tspan><tspan fill="#BFF0C7">953</tspan>
+  </text>
+  <text x="212" y="284" font-family="Figtree, system-ui, sans-serif" font-weight="600" font-size="27" fill="#BFF0C7">Type a plain idea. Get a finished, tested project.</text>
+  <text x="212" y="322" font-family="Figtree, system-ui, sans-serif" font-weight="500" font-size="18" fill="#82D2C3">An autonomous coding team for Claude Code · a GRU953 project</text>
 </svg>

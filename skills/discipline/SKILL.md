@@ -77,7 +77,10 @@ no prompt-injected agent can talk past them. The semantics:
 - **Plan/test gate (`gate.mjs`).** Pre-build phases DENY source writes outside
   `.dev953/` and `docs/`. Publish commands are DENIED unless `phase==publish`.
   Irreversible ops (`rm -rf`, `git reset --hard`, `git clean -fdx`, force-push,
-  content-overwrite) are DENIED unless a plain-English user yes has been recorded.
+  content-overwrite) are DENIED unless `voice` has recorded a **fresh, op-specific**
+  confirmation in `handoffs.md` — the exact line `CONFIRMED-IRREVERSIBLE: <run_id>:<op-hash>`
+  (op-hash = first 16 hex of `sha256(<command>)`). A generic "yes" elsewhere in the log is
+  NOT enough, so a past approval can never silently unlock a later data-loss command.
   Stop / SubagentStop is BLOCKED when the phase requires a test and
   `test-result.json` is not `pass` with a matching `run_id`, or a required artifact
   is missing.

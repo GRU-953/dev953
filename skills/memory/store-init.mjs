@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// store-init.mjs — pure-Node port of the dev953 command Bootstrap store-creation
-// block (commands/dev953.md §2). Builds the .dev953/ store for an UNINITIALIZED run.
+// store-init.mjs — the dev953 command Bootstrap store-creation block
+// (commands/dev953.md §2). Builds the .dev953/ store for an UNINITIALIZED run.
 //
 //   store-init "<idea>"
 //
@@ -55,7 +55,7 @@ function main() {
 
   const now = new Date();
   const runId = `${compactUtc(now)}-${process.pid}`;
-  const store = path.join(process.cwd(), '.dev953');
+  const store = path.join(process.env.CLAUDE_PROJECT_DIR || process.cwd(), '.dev953');
 
   // mkdir -p .dev953/done .dev953/work
   fs.mkdirSync(path.join(store, 'done'), { recursive: true });

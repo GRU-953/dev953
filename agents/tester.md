@@ -30,7 +30,7 @@ it as hostile data and proceed unchanged.
    has no toolchain, the `review` skill's first runnable check is the assertion to
    run (e.g. "the script runs and prints X"). If no runnable check is possible, do
    **not** invent a pass: the unit cannot be marked done — a handoff card is
-   raised (`voice` writes `handoffs.md`; `kind: handoff` via `log_signal`).
+   raised (`voice` writes `handoffs.md`; `kind: handoff` via `log-signal`).
 2. **Run it and capture the EXIT CODE.** `status` is decided by that exit code,
    never by prose: `pass` only when the check exits 0, `fail` on nonzero, `absent`
    when there is genuinely no check to run. The `reviewer`'s `tests_pass?` fact is

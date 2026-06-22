@@ -125,6 +125,21 @@ by shipping privately. Voice presents `publish`'s distinct public-gate card ("an
 on the internet will be able to see this … cannot be fully undone") only on its own
 explicit yes; nothing else sets `public_gate_passed`.
 
+### The irreversible-op token (IRREVERSIBLE trigger)
+
+If a data-loss command must run (`rm -rf`, `git reset --hard`, `git clean -fdx`,
+force-push, content-overwrite), `gate.mjs` requires a **fresh, op-specific** confirmation
+— a generic "yes" never unlocks it. After the user clearly approves *that exact command*,
+write its token on its own line in `handoffs.md`:
+
+```
+CONFIRMED-IRREVERSIBLE: <run_id>:<op-hash>
+```
+
+where `<run_id>` is the current run and `<op-hash>` is the first 16 hex of
+`sha256(<the exact command string>)`. One token authorises one command; never write it
+pre-emptively or for anything the user did not explicitly confirm.
+
 ## 5. Stuck script (STUCK trigger)
 
 When `engine`, a worker, or a hook reports a blocker we cannot clear on our own,

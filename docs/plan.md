@@ -1,5 +1,10 @@
 # dev953 — Build Plan
 
+> **Historical build record.** The current shipped state is in `docs/architecture.md`
+> and `docs/decisions/`. The executable layer is now Node `.mjs` and an MCP companion
+> ships — see decision 0003. The `.sh` filenames and `bash -n` checks below reflect
+> the original pre-port build and are kept for history only.
+
 *Commit-sized tasks, each with a concrete acceptance test. Built strictly in order
 (T01 → T17). Phase E (T17) is the real acceptance test: dev953 builds and ships a
 throwaway product end-to-end using its own runtime swarm.*
@@ -15,7 +20,8 @@ proven by `docs/selftest-report.md` (recording the private repo URL) and a passi
 capability built once, no file outside this inventory, both hooks enforcing the
 plan/test gate and the pre-publish scan on the Orchestrator and every worker, the
 store created `chmod 700` and gitignored at creation, and no `.dev953/` content ever
-reaching the published repo.
+reaching the published repo. (The original "0 MCP servers" count here was reversed by
+decision 0003 — a `1 MCP companion server` now ships.)
 
 ## Tasks
 

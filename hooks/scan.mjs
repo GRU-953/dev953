@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 //
 // scan.mjs — Hook 2: pre-publish secret scan (PreToolUse, matcher "Bash").
-// Pure Node port of hooks/scan.sh. Zero dependencies (Node stdlib only).
+// Zero dependencies (Node stdlib only).
 // Internally gated to push-capable commands — the SINGLE place publish commands
 // are pattern-matched. Behaviour/semantics defined once in
 // skills/discipline/SKILL.md and docs/architecture.md §5; this file only
@@ -16,11 +16,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 
-import { storeDir, storeField, redact } from './lib.mjs';
+import { storeDir, storeField, redact, isPushCapable } from './lib.mjs';
 
 // ---- decision helpers --------------------------------------------------------
 // Emit a PreToolUse permission decision and exit. allow -> 0; deny -> 2.
-// (scan.sh's deny prints the reason raw; reasons here are static literals.)
+// (deny reasons here are static literals.)
 function allow() {
   process.stdout.write('{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}\n');
   process.exit(0);
@@ -56,25 +56,8 @@ function extractCommand(input) {
 }
 
 // ---- push-command matcher (fail CLOSED) --------------------------------------
-// Scan iff the command is push-capable. If we cannot POSITIVELY prove the
-// command is NON-push, treat it as push and scan (fail closed).
-function isPushCapable(c) {
-  // No command string at all -> cannot prove non-push -> fail closed (push).
-  if (!c) return true;
-  // git push (any form, incl. `git -C dir push`, `git push --force`).
-  if (/(^|[^A-Za-z0-9_])git([ \t]+-[^ \t]+|[ \t]+[^ \t]+)*[ \t]+push([ \t]|$)/.test(c)) return true;
-  // gh push-capable: repo create/edit/sync/clone, pr create, release
-  // create/upload, gist create.
-  if (/(^|[^A-Za-z0-9_])gh[ \t]+(repo[ \t]+(create|edit|sync|clone)|pr[ \t]+create|release[ \t]+(create|upload)|gist[ \t]+create)/.test(c)) return true;
-  // any `gh ... --push`.
-  if (/(^|[^A-Za-z0-9_])gh[ \t].*--push([ \t]|=|$)/.test(c)) return true;
-  // Shell metacharacters can hide a push behind &&, ;, |, $( ), backticks, eval.
-  // If compound/obfuscated AND mentions push/gh, cannot prove non-push -> closed.
-  if (/(&&|\|\||;|\||`|\$\(|eval[ \t])/.test(c)) {
-    if (/(push|(^|[^A-Za-z0-9_])gh([ \t]|$))/.test(c)) return true;
-  }
-  return false;
-}
+// Scan iff the command is push-capable. isPushCapable lives in lib.mjs so the
+// gate's publish phase-check and this scan share ONE definition (build-once).
 
 // ---- git helpers -------------------------------------------------------------
 // Run git in `cwd`; return {status, stdout, ok}. Never throws.
@@ -96,14 +79,13 @@ function main() {
   // ---- locate the repo / store -----------------------------------------------
   const STORE = storeDir(); // absolute path to .dev953/ (lib.mjs resolver)
   if (STORE === null) {
-    // store_dir failed: scan.sh sourced lib with `set -e` would abort, but in
-    // practice the resolver finding no store cannot prove the push set clean.
+    // No store resolved: cannot prove the push set clean -> fail closed.
     deny('dev953 scan: not a git work tree; cannot prove the push set is clean');
   }
   const REPO = path.dirname(STORE); // project root == repo working tree
 
-  // cd into repo (scan.sh does `cd "${REPO}"`); we pass cwd to each git call and
-  // resolve file paths relative to REPO instead of changing process cwd.
+  // We pass cwd to each git call and resolve file paths relative to REPO
+  // instead of changing process cwd.
   try {
     fs.accessSync(REPO);
   } catch {
@@ -151,13 +133,19 @@ function main() {
   // LC_ALL=C sort -u: byte-wise sort, unique.
   const FILES = Array.from(fileSet).sort();
 
+  // Skip content-scanning files larger than this — secret/key material is small.
+  const MAX_SCAN_BYTES = 4 * 1024 * 1024;
+
   // ---- high-signal secret regexes (the ONLY content signals) -----------------
   // NO entropy / Luhn / SSN / license-body logic.
   const SECRET_RE = /AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|sk_live_[0-9A-Za-z]{16,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;
   // Secret-named env var with a long value, e.g. API_SECRET="abcdefghij...".
-  const SECRETVAR_RE = /([A-Z0-9_]*(SECRET|TOKEN|PASSWORD|PASSWD|APIKEY|API_KEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*)[ \t]*[:=][ \t]*["']?[A-Za-z0-9/+_.=-]{16,}/;
-  // Key files that must never ship.
-  const KEYFILE_RE = /(^|\/)(\.env(\..+)?|id_rsa|.+\.pem|.+\.key)$/;
+  // Anchored on the keyword with a BOUNDED trailing run (no nested unbounded
+  // runs) so matching stays linear — avoids catastrophic backtracking on long
+  // lines. Name group is case-insensitive (/i) to catch lowercase/mixed config.
+  const SECRETVAR_RE = /(SECRET|TOKEN|PASSWORD|PASSWD|APIKEY|API_KEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]{0,64}[ \t]*[:=][ \t]*["']?[A-Za-z0-9/+_.=-]{16,}/i;
+  // Key files that must never ship (dot-prefixed .env/.env.* and trailing .env).
+  const KEYFILE_RE = /(^|\/)(\.env(\..+)?|.+\.env|id_rsa|.+\.pem|.+\.key)$/;
 
   // ---- scan ------------------------------------------------------------------
   // Findings JSON array of {type,file,line} — redaction (no value bytes).
@@ -185,6 +173,9 @@ function main() {
       continue;
     }
     if (!st.isFile()) continue;
+    // Size-gate before reading: secret/key material is small, so files past a
+    // few MB are safe to skip and avoid loading huge assets/data into memory.
+    if (st.size > MAX_SCAN_BYTES) continue;
     let buf;
     try {
       fs.accessSync(abs, fs.constants.R_OK);
@@ -192,18 +183,19 @@ function main() {
     } catch {
       continue;
     }
-    // grep -Iq . : skip binary files (those containing a NUL byte).
+    // Skip binary files (those containing a NUL byte).
     if (buf.includes(0)) continue;
     const text = buf.toString('utf8');
-    // grep -n splits on \n; line numbers are 1-based. A trailing newline does
-    // not create an extra empty trailing line in grep's accounting.
-    const lines = text.split('\n');
+    // Line numbers are 1-based. Split on CRLF or LF so Windows-authored files
+    // do not carry a trailing '\r' on each line. A trailing newline does not
+    // create an extra empty trailing line.
+    const lines = text.split(/\r?\n/);
     if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
     for (let i = 0; i < lines.length; i++) {
       const ln = lines[i];
       const num = i + 1;
-      // Each matched line number is emitted (scan.sh greps each pattern
-      // separately, so a line matching both yields two findings, secret first).
+      // Each pattern is tested separately, so a line matching both yields two
+      // findings, secret first.
       if (SECRET_RE.test(ln)) addFinding('secret', f, String(num));
     }
     for (let i = 0; i < lines.length; i++) {
@@ -220,10 +212,10 @@ function main() {
   try {
     fs.writeFileSync(
       `${STORE}/scan-report.json`,
-      `{"run_id":"${RUN_ID}","clean":${CLEAN},"findings":${FINDINGS_JSON}}\n`
+      `{"run_id":${JSON.stringify(RUN_ID)},"clean":${CLEAN},"findings":${FINDINGS_JSON}}\n`
     );
   } catch {
-    // best-effort, like scan.sh's `|| true`
+    // best-effort — a failed receipt write must not change the verdict.
   }
 
   // ---- verdict ---------------------------------------------------------------

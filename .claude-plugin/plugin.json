@@ -1,8 +1,9 @@
 {
   "name": "dev953",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Autonomous multi-agent coding team: type /dev953 \"<plain idea>\" and it runs brainstorm to publish and ships to your GitHub. Maximum agents in, minimum code out.",
   "author": {
     "name": "GRU953"
-  }
+  },
+  "license": "Apache-2.0"
 }

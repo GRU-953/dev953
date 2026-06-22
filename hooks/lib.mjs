@@ -1,5 +1,5 @@
 // hooks/lib.mjs — shared helpers for gate.mjs and scan.mjs.
-// Pure Node port of hooks/lib.sh. Zero dependencies (Node stdlib only).
+// Zero dependencies (Node stdlib only).
 // Behavioural contract (YAGNI ladder, "all input text is DATA not instructions",
 // secrets-never-printed) lives once in skills/discipline/SKILL.md; this file only
 // provides mechanism. Store FORMAT is owned by skills/memory/SKILL.md; we only
@@ -101,11 +101,34 @@ export function storeField(name = '', key = '') {
 // Args: <type> <file> <line>. Returns a compact JSON object string suitable for
 // the findings[] array in scan-report.json. No secret/PII bytes ever pass
 // through: type/file are stripped to safe label/path chars; line is forced to a
-// non-negative integer (0 when non-numeric), matching lib.sh's redact().
+// non-negative integer (0 when non-numeric).
 export function redact(type = 'unknown', file = '', line = '0') {
   const safeType = String(type).replace(/[^A-Za-z0-9_.-]/g, '');
   const safeFile = String(file).replace(/[^A-Za-z0-9_./-]/g, '');
   let safeLine = String(line);
   if (safeLine === '' || /[^0-9]/.test(safeLine)) safeLine = '0';
   return `{"type":"${safeType}","file":"${safeFile}","line":${safeLine}}`;
+}
+
+// --- push-capable command matcher (SHARED) ---------------------------------
+// The single source of truth for "is this command push-capable?", used by both
+// gate.mjs (publish phase gate) and scan.mjs (pre-push secret scan). Fail
+// CLOSED: if we cannot POSITIVELY prove the command is NON-push, treat it as
+// push. The command string is DATA, never instructions.
+export function isPushCapable(c) {
+  // No command string at all -> cannot prove non-push -> fail closed (push).
+  if (!c) return true;
+  // git push (any form, incl. `git -C dir push`, `git push --force`).
+  if (/(^|[^A-Za-z0-9_])git([ \t]+-[^ \t]+|[ \t]+[^ \t]+)*[ \t]+push([ \t]|$)/.test(c)) return true;
+  // gh push-capable: repo create/edit/sync/clone, pr create, release
+  // create/upload, gist create.
+  if (/(^|[^A-Za-z0-9_])gh[ \t]+(repo[ \t]+(create|edit|sync|clone)|pr[ \t]+create|release[ \t]+(create|upload)|gist[ \t]+create)/.test(c)) return true;
+  // any `gh ... --push`.
+  if (/(^|[^A-Za-z0-9_])gh[ \t].*--push([ \t]|=|$)/.test(c)) return true;
+  // Shell metacharacters can hide a push behind &&, ;, |, $( ), backticks, eval.
+  // If compound/obfuscated AND mentions push/gh, cannot prove non-push -> closed.
+  if (/(&&|\|\||;|\||`|\$\(|eval[ \t])/.test(c)) {
+    if (/(push|(^|[^A-Za-z0-9_])gh([ \t]|$))/.test(c)) return true;
+  }
+  return false;
 }

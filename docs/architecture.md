@@ -34,7 +34,7 @@ place locking is defined. When tests pass and the user says "yes, that's what I
 wanted," `publish` ships it to GitHub — private by default, with all AI fingerprints
 stripped and the user as sole author.
 
-**Tally:** 1 command · 6 skills · 5 agents · 2 hooks · 1 store · 0 MCP servers.
+**Tally:** 1 command · 6 skills · 5 agents · 2 hooks · 1 store · 1 MCP companion server.
 Every capability appears in exactly one place.
 
 ---
@@ -43,7 +43,8 @@ Every capability appears in exactly one place.
 
 ### Command
 
-**`/dev953`** — type: command — files: `commands/dev953.md`
+**`/dev953`** — type: command — files: `commands/dev953.md`,
+`skills/memory/store-init.mjs`
 - The only thing the user types: `/dev953 "<plain idea>"`. Entry point for the
   whole lifecycle.
 - **Bootstrap (closes the gate-disabled-on-first-run gap):** on invocation it
@@ -52,6 +53,8 @@ Every capability appears in exactly one place.
   `idea.md`/`state.json`/`plan.md` with `phase=brainstorm` **before** any other
   work — so the gate is never bypassed at the moment it matters. If `.dev953/`
   already exists, it hands control to `voice` for re-entry narration.
+- That first-run store creation is performed by `skills/memory/store-init.mjs`,
+  which the command invokes (`node "$PLUGIN/skills/memory/store-init.mjs"`).
 
 ### Skills
 
@@ -66,8 +69,10 @@ Every capability appears in exactly one place.
 - One Node script with two subcommands only. `count-lines` is folded into a one-line inline command
   (`git diff --numstat` minus a lockfile glob, non-blank only) — no separate
   script, no fragile per-language comment stripping.
-- `node scripts/worktree.mjs new <slug> <n>`: create one isolated worktree off the frozen base
-  SHA at `.dev953/work/<slug>/a<n>`, print its absolute path. **Fails loudly on a
+- `DEV953_BASE=<frozen base SHA> node scripts/worktree.mjs new <slug> <n>`: create one
+  isolated worktree off the frozen base
+  SHA (passed via `DEV953_BASE`) at `.dev953/work/<slug>/a<n>`, print its absolute path.
+  **Fails loudly on a
   collision** (no silent force-remove); recovery is the loop's job via
   `node scripts/worktree.mjs rm`.
 - `node scripts/worktree.mjs rm <slug> <n>`: `git worktree remove --force` + `git branch -D`,
@@ -85,7 +90,8 @@ Every capability appears in exactly one place.
 - Owns the *semantics* of the two gates; the two hooks below are their mechanical
   enforcement.
 
-**`memory`** — type: skill — files: `skills/memory/SKILL.md`, `skills/memory/lease.mjs`
+**`memory`** — type: skill — files: `skills/memory/SKILL.md`, `skills/memory/lease.mjs`,
+`skills/memory/store-init.mjs`
 - The **only** place the read/write/append/resume/locking protocol is written.
   Owns the store FORMAT; every other component reads/writes the agreed files
   through it and invents none of its own.
@@ -180,6 +186,19 @@ Every capability appears in exactly one place.
 - The single memory + coordination + resume substrate. One directory at project
   root, created chmod 700, git-ignored via `.gitignore`=`*`. See §4 for the schema.
 
+### MCP companion server
+
+**`dev953` MCP server** — type: mcp-server — files: `mcp/server.mjs`, `.mcp.json`
+- The cross-assistant **method companion** (added by decision 0003, which reversed
+  0001's no-MCP stance). A zero-dependency Node server speaking newline-delimited
+  JSON-RPC over stdio, auto-registered for Claude via `.mcp.json` and runnable
+  standalone for any other MCP client.
+- Exposes dev953's *method* as advice-only tools — lifecycle planning, the YAGNI
+  ladder, the swarm recipe, and the discipline/publish checklists. Each tool returns
+  structured guidance for the calling assistant to act on. It **does not** run the
+  swarm, spawn worktrees, or build anything itself (that needs a host coding
+  runtime). See `mcp/README.md` and decision 0003 §2.
+
 ---
 
 ## 3. Engine protocol
@@ -207,7 +226,8 @@ data model"). The Orchestrator runs this loop per unit.
 4. **FANOUT = 2** by default (3 only after a budget raise). Pick FANOUT deliberately
    different one-sentence strategy hints (e.g. a1 = most obvious direct approach,
    a2 = least new code / reuse stdlib).
-5. **CREATE WORKTREES** off the frozen base: `node scripts/worktree.mjs new <slug> <n>` →
+5. **CREATE WORKTREES** off the frozen base:
+   `DEV953_BASE=<frozen base SHA> node scripts/worktree.mjs new <slug> <n>` →
    capture absolute path P_n. The Orchestrator does this serially.
 6. **FAN OUT IN ONE TURN.** Emit FANOUT `builder` Task calls in a single assistant
    message (this is what makes them concurrent). Each prompt = {brief, the one hint,
@@ -268,7 +288,7 @@ serial writer of `idea.md`, `state.json`, `plan.md`, and the appender of
 | `memory.md` | Orchestrator (append) + minimalist (structure line) | ONE durable-memory file: idea restatement at top, then append-only `### <iso> — <title>` decision/winner blocks, plus a flat `path — one-line purpose` structure map. (Replaces idea/decisions/structure split.) |
 | `signals.log` | any worker, via the `log-signal` subcommand | Append-only JSONL: `{ts, agent, kind, ref, note}`, kind ∈ claimed\|done\|handoff\|blocked\|round. Serialized by a microsecond `mkdir` guard with spin+backoff (no timed force-remove). Orchestrator reads only the tail since its cursor. |
 | `test-result.json` | tester | `{run_id, status: pass\|fail\|absent, ts}`. The gate hook requires `status==pass` AND `run_id==state.run_id`. |
-| `scan-report.json` | scan hook | Deny receipt only: `{run_id, clean, findings:[{type, file, line}]}`. **Redacted to type+location — no value bytes** for PII; last4 only for non-identifying API keys. |
+| `scan-report.json` | scan hook | Deny receipt only: `{run_id, clean, findings:[{type, file, line}]}`. **Redacted to type+location — no value bytes.** |
 | `publish.json` | publisher (writes); Orchestrator sets flags | `{status: scanned\|history_built\|repo_created\|pushed, repo_name, visibility, license_id, repo_url, intent_confirmed, public_gate_passed}`. Explicit status enum so re-entry never re-creates or re-pushes. |
 | `handoffs.md` | **voice only** | Append-only log of every card + reply, including the `ACCEPTED: publish` / `GOAHEAD: cost` tokens the hooks/publisher match literally. Voice-write-only so the unlock cannot be poisoned. |
 | `done/<milestone>.json` | the actor that completes it | Idempotency markers (`repo-created`, `published`, `secret-scan`): `{at, by, detail}`. Check-before-act. |

@@ -1,5 +1,10 @@
 # dev953 — Merge Map
 
+> **Historical build record.** The current shipped state is in `docs/architecture.md`
+> and `docs/decisions/`. The executable layer is now Node `.mjs` and an MCP companion
+> ships — see decision 0003. The "0 MCP servers" / "no MCP server" lines below reflect
+> the original pre-0003 design and are kept for history only.
+
 > **The first deliverable.** Nothing else gets designed until this exists and the
 > Minimalism Enforcer signs off (bottom of file).
 >
@@ -162,14 +167,15 @@ definitions), **hooks**, and a local **store** (data, not code).
 | **5 agents** | C2 roster | `builder`, `reviewer`, `tester`, `minimalist`, `publisher` |
 | **≤2 hooks** | C1 + safety | the build/test gate; a pre-publish secret/PII scan |
 | **1 local store** — `.dev953/` | C3 | markdown/JSON files: plan, decisions, structure, leases, signals |
-| **0 MCP servers** | — | not unavoidable, so not built (see decision record) |
+| **0 MCP servers** | — | not unavoidable, so not built (see decision record) — *reversed by decision 0003; a 1 MCP companion server now ships* |
 
 **The Orchestrator is not a separate agent.** It *is* the main conversation
 driving `/dev953`, wearing the `voice` skill. Only the workers it spawns
 (`builder` ×N, `reviewer`, `tester`, `minimalist`, `publisher`) are agent files.
 Fewer files; same behaviour.
 
-**Tally:** 1 command · 6 skills · 5 agents · ≤2 hooks · 1 store · 0 MCP servers.
+**Tally:** 1 command · 6 skills · 5 agents · ≤2 hooks · 1 store · 0 MCP servers
+*(reversed by decision 0003 — a 1 MCP companion server now ships)*.
 Every capability appears in exactly one place.
 
 ---
@@ -196,7 +202,7 @@ Every capability appears in exactly one place.
 - [x] The ~50 projects collapse to **8 capabilities** → **1 command + 6 skills + 5 agents + ≤2 hooks + 1 store**.
 - [x] The multi-agent engine is **one** capability, not many.
 - [x] Memory and coordination are **one** store, not separate systems.
-- [x] **No MCP server** — it is avoidable, so it is not built.
+- [x] **No MCP server** — it is avoidable, so it is not built. *(Reversed by decision 0003 — a 1 MCP companion server now ships.)*
 - [x] Nothing from the corpus is cloned or vendored — ideas only.
 
 **Signed off: this is the smallest honest mapping.** Design may now proceed.

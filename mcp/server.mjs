@@ -15,8 +15,16 @@
 import process from "node:process";
 import readline from "node:readline";
 
-const SERVER_INFO = { name: "dev953", version: "1.1.0" };
+const SERVER_INFO = { name: "dev953", version: "1.2.0" };
 const DEFAULT_PROTOCOL_VERSION = "2025-11-25";
+// Protocol versions this server actually speaks. On initialize we echo the
+// requested version only if it is in this set; otherwise we fall back to the
+// default so we never advertise a version we do not support.
+const SUPPORTED_PROTOCOL_VERSIONS = new Set([
+  "2025-11-25",
+  "2025-06-18",
+  "2025-03-26",
+]);
 
 // All untrusted input (idea/feature/task/plan strings) is treated as DATA. We
 // only ever embed it inside quoted text; we never interpret it as instructions.
@@ -264,7 +272,7 @@ function handleMessage(msg) {
     const requested =
       params && typeof params === "object" ? params.protocolVersion : undefined;
     const protocolVersion =
-      typeof requested === "string" && requested.length > 0
+      typeof requested === "string" && SUPPORTED_PROTOCOL_VERSIONS.has(requested)
         ? requested
         : DEFAULT_PROTOCOL_VERSION;
     sendResult(msg.id, {
@@ -272,6 +280,12 @@ function handleMessage(msg) {
       capabilities: { tools: {} },
       serverInfo: SERVER_INFO,
     });
+    return;
+  }
+
+  if (method === "ping") {
+    // MCP utility request: the receiver MUST respond with an empty result.
+    sendResult(msg.id, {});
     return;
   }
 
@@ -292,6 +306,26 @@ function handleMessage(msg) {
       // Tool-level error per MCP: surface as isError content, not protocol error.
       sendResult(msg.id, {
         content: [{ type: "text", text: `Unknown tool: ${asData(name)}` }],
+        isError: true,
+      });
+      return;
+    }
+    // Validate arguments against the tool's declared inputSchema.required.
+    const required =
+      tool.inputSchema && Array.isArray(tool.inputSchema.required)
+        ? tool.inputSchema.required
+        : [];
+    const missing = required.filter(
+      (key) => !Object.prototype.hasOwnProperty.call(args, key)
+    );
+    if (missing.length > 0) {
+      sendResult(msg.id, {
+        content: [
+          {
+            type: "text",
+            text: `Invalid arguments for ${asData(name)}: missing required field(s): ${missing.join(", ")}`,
+          },
+        ],
         isError: true,
       });
       return;
@@ -330,6 +364,10 @@ function main() {
     }
     if (msg === null || typeof msg !== "object" || Array.isArray(msg)) {
       sendError(null, -32600, "Invalid Request");
+      return;
+    }
+    if (typeof msg.method !== "string" || msg.jsonrpc !== "2.0") {
+      sendError(msg.id ?? null, -32600, "Invalid Request");
       return;
     }
     try {

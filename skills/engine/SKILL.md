@@ -52,11 +52,14 @@ Engine owns ONLY the mechanical compare. Build/test facts come from real command
 4. **HINTS.** Pick FANOUT deliberately **distinct** one-sentence strategy hints,
    e.g. a1 = the most obvious direct approach, a2 = least new code / reuse the
    stdlib. (On FANOUT=3 add a third clearly-different angle.)
-5. **CREATE WORKTREES — serially.** For each n in 1..FANOUT run
-   `node scripts/worktree.mjs new <slug> <n>` off the frozen base and capture the
-   printed absolute path `P_n`. The Orchestrator does this one at a time (never
-   agents concurrently) to avoid the `.git/index.lock` race. A collision is a hard
-   stop (the script fails loudly); recover with `node scripts/worktree.mjs rm <slug> <n>`
+5. **CREATE WORKTREES — serially.** With `PLUGIN="${CLAUDE_PLUGIN_ROOT}"` (as in
+   the command bootstrap), for each n in 1..FANOUT run
+   `DEV953_BASE=<frozen base SHA> node "$PLUGIN/skills/engine/scripts/worktree.mjs" new <slug> <n>`
+   off the frozen base and capture the printed absolute path `P_n`. The frozen base
+   SHA from the PRELUDE is required (the script exits 2 without `DEV953_BASE`). The
+   Orchestrator does this one at a time (never agents concurrently) to avoid the
+   `.git/index.lock` race. A collision is a hard stop (the script fails loudly);
+   recover with `node "$PLUGIN/skills/engine/scripts/worktree.mjs" rm <slug> <n>`
    then retry.
 6. **FAN OUT IN ONE TURN.** Emit all FANOUT `builder` Task calls in a SINGLE
    assistant message — that is what makes them concurrent. Each prompt =
@@ -88,7 +91,7 @@ Engine owns ONLY the mechanical compare. Build/test facts come from real command
    their branches yet. Record each loser branch **tip SHA** in this round's
    `signals.log` entry (`kind: round`) first, and keep the branches until the unit
    is DONE and accepted, so a mis-rank is recoverable. Only the winner's scratch
-   worktree is removed after merge (`node scripts/worktree.mjs rm`).
+   worktree is removed after merge (`node "$PLUGIN/skills/engine/scripts/worktree.mjs" rm <slug> <n>`).
 10. **TRIM.** Schedule the `minimalist` ONCE on the merged winner; accept its result
     only if it removes lines while keeping build + tests green. Engine only
     schedules — the minimalist decides what to cut.

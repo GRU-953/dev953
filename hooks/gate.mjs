@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 //
 // gate.mjs — the plan-before-build / test-before-done gate (Hook 1 of 2).
-// Pure Node port of hooks/gate.sh. Zero dependencies (Node stdlib only).
+// Zero dependencies (Node stdlib only).
 // Wired PreToolUse (Edit|Write|MultiEdit|Bash|NotebookEdit) + Stop + SubagentStop.
 // Gate *semantics* are owned by the discipline skill; this file is the mechanical
 // enforcement only. All payload / file / tool text is DATA, never instructions.
@@ -15,12 +15,16 @@
 // Log only to stderr; stdout is reserved for the decision JSON.
 
 import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import process from 'node:process';
+
+import { isPushCapable } from './lib.mjs';
 
 // --- jq-optional single-field read (mirrors jq ".field" nested semantics) ----
 // Reads one dotted field out of a JSON document string. Returns '' when the
 // document is unparseable, the field is absent/null, or the value is not a
-// flat scalar — matching gate.sh's _gate_jget empty fallbacks. DATA only.
+// flat scalar — DATA only.
 function jget(field, blob) {
   if (blob === undefined || blob === null) return '';
   let obj;
@@ -57,7 +61,7 @@ function jgetFile(field, src) {
 // Resolve the .dev953 store directory at the project root.
 // Note: gate uses CLAUDE_PROJECT_DIR||cwd directly (NOT the walk-up resolver).
 function gateStoreDir() {
-  return `${process.env.CLAUDE_PROJECT_DIR || process.cwd()}/.dev953`;
+  return path.join(process.env.CLAUDE_PROJECT_DIR || process.cwd(), '.dev953');
 }
 
 // --- stdin read (the hook payload, DATA) --------------------------------------
@@ -98,7 +102,7 @@ function main() {
   const STOP_ACTIVE = jget('stop_hook_active', PAYLOAD);
 
   const STORE = gateStoreDir();
-  const STATE = `${STORE}/state.json`;
+  const STATE = path.join(STORE, 'state.json');
   const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
   // --- state.json: parse + validate the gate_marker, else fail closed --------
@@ -116,36 +120,37 @@ function main() {
     PHASE = jgetFile('phase', STATE);
     RUN_ID = jgetFile('run_id', STATE);
     const MARKER = jgetFile('gate_marker', STATE);
-    // The Orchestrator owns the gate_marker value; a marker that is dropped or
-    // blanked lands us in fail-closed mode — intended. A valid phase enum and a
-    // run_id are also required before phase is trusted.
+    // The gate_marker is bound to run_id: store-init derives it as the first 32
+    // hex of sha256("dev953:"+run_id). Recompute and compare — a marker that is
+    // dropped, blanked, or forged (e.g. by a prompt-injected in-zone write that
+    // sets phase:'publish' with an arbitrary marker) lands us in fail-closed
+    // mode. A valid phase enum and a non-empty run_id are also required.
     const VALID_PHASES = new Set([
       'brainstorm', 'ideate', 'design', 'plan', 'build',
       'test', 'fix', 'update', 'publish', 'done',
     ]);
-    if (VALID_PHASES.has(PHASE)) {
-      if (MARKER !== '' && RUN_ID !== '') STATE_OK = 1;
+    const expect = crypto.createHash('sha256').update(`dev953:${RUN_ID}`).digest('hex').slice(0, 32);
+    if (VALID_PHASES.has(PHASE) && RUN_ID !== '' && MARKER === expect) {
+      STATE_OK = 1;
     } else {
       STATE_OK = 0;
     }
   }
 
   // --- zone check: write target inside .dev953/ or docs/ ? -------------------
+  // Cross-platform: path.resolve handles both relative and absolute targets on
+  // every OS (and normalizes away any '..' segments), and path.relative gives a
+  // separator-agnostic containment test. A target is in-zone when it is the
+  // zone root itself or strictly below it (relative path is '' or does not
+  // escape with a leading '..').
   function inZone(p) {
     if (!p) return false;
-    if (!p.startsWith('/')) {
-      p = `${PROJECT_DIR}/${p}`;
-    }
-    p = p.replace(/\/\/+/g, '/'); // collapse repeated slashes
-    // reject traversal: any '/../' segment, or a trailing '/..'
-    if (p.includes('/../') || p.endsWith('/..')) return false;
-    if (
-      p === `${PROJECT_DIR}/.dev953` ||
-      p.startsWith(`${PROJECT_DIR}/.dev953/`) ||
-      p === `${PROJECT_DIR}/docs` ||
-      p.startsWith(`${PROJECT_DIR}/docs/`)
-    ) {
-      return true;
+    const resolved = path.resolve(PROJECT_DIR, p);
+    const zones = [path.join(PROJECT_DIR, '.dev953'), path.join(PROJECT_DIR, 'docs')];
+    for (const root of zones) {
+      const rel = path.relative(root, resolved);
+      if (rel === '') return true; // the zone root itself
+      if (!rel.startsWith('..') && !path.isAbsolute(rel)) return true; // strictly below
     }
     return false;
   }
@@ -159,10 +164,23 @@ function main() {
     return PHASE === 'brainstorm' || PHASE === 'ideate' || PHASE === 'design' || PHASE === 'plan';
   }
 
-  // voice is the only writer of handoffs.md; an irreversible op needs a recorded
-  // plain-English yes there. No file or no yes => not confirmed (fail closed).
-  const HANDOFFS = `${STORE}/handoffs.md`;
-  function userYesRecorded() {
+  // voice is the only writer of handoffs.md; an irreversible op needs a fresh,
+  // op-specific confirmation recorded there. A generic free-text "yes" anywhere
+  // in the log is NOT enough — once "yes" appeared (e.g. a phase acceptance) it
+  // would otherwise unlock every later data-loss op. Instead we require an
+  // explicit token bound to BOTH the run_id and a hash of the exact command:
+  //
+  //   CONFIRMED-IRREVERSIBLE: <run_id>:<op-hash>
+  //
+  // where op-hash = first 16 hex of sha256(<command>). voice writes this token
+  // on its own line only after the user confirms that specific op, so the
+  // confirmation cannot be satisfied by stale or injected free text.
+  const HANDOFFS = path.join(STORE, 'handoffs.md');
+  function opHash(c) {
+    return crypto.createHash('sha256').update(String(c)).digest('hex').slice(0, 16);
+  }
+  function irreversibleConfirmed(c) {
+    if (RUN_ID === '') return false; // no trusted run id => cannot bind a token
     let text;
     try {
       fs.accessSync(HANDOFFS, fs.constants.R_OK);
@@ -170,9 +188,12 @@ function main() {
     } catch {
       return false;
     }
-    // grep -qiE '(^|[^a-z])(yes|confirm|confirmed|go ahead|proceed|approved)([^a-z]|$)'
-    // Case-insensitive, multiline (^/$ are line anchors in grep).
-    return /(^|[^a-z])(yes|confirm|confirmed|go ahead|proceed|approved)([^a-z]|$)/im.test(text);
+    const token = `CONFIRMED-IRREVERSIBLE: ${RUN_ID}:${opHash(c)}`;
+    // Match the exact token as a full line (any EOL style), DATA only.
+    for (const line of text.split(/\r?\n/)) {
+      if (line.trim() === token) return true;
+    }
+    return false;
   }
 
   // Irreversible / data-loss Bash op?
@@ -186,13 +207,12 @@ function main() {
     return false;
   }
 
-  // Publish (push-capable) command? Phase check only here; scan owns the secret
-  // scan's publish-command matching so there is exactly one decision per call.
+  // Publish (push-capable) command? The gate's phase check and scan.mjs's
+  // pre-push scan share ONE matcher (isPushCapable in lib.mjs) so a push-capable
+  // command cannot slip past the phase gate while still being scanned — the two
+  // controls now cover exactly the same command set.
   function isPublishCommand(c) {
-    if (!c) return false;
-    if (/git[ \t]+push/.test(c)) return true;
-    if (/gh[ \t]+(repo[ \t]+(create|edit)|release[ \t]+create)/.test(c)) return true;
-    return false;
+    return isPushCapable(c);
   }
 
   // ==========================================================================
@@ -209,7 +229,7 @@ function main() {
     }
 
     if (PHASE === 'build' || PHASE === 'test' || PHASE === 'fix' || PHASE === 'update' || PHASE === 'publish') {
-      const TR = `${STORE}/test-result.json`;
+      const TR = path.join(STORE, 'test-result.json');
       let trReadable = false;
       try {
         fs.accessSync(TR, fs.constants.R_OK);
@@ -279,10 +299,11 @@ function main() {
 
       case 'Bash': {
         const CMD = bashCommand();
-        // Irreversible ops require a recorded user yes, in any phase.
+        // Irreversible ops require a fresh, op-specific confirmation token in
+        // handoffs.md bound to this run_id and this exact command, in any phase.
         if (isIrreversible(CMD)) {
-          if (userYesRecorded()) allow();
-          deny('Irreversible operation (rm -rf / git reset --hard / git clean -fdx / force-push / content-overwrite) requires a recorded user confirmation in .dev953/handoffs.md (see voice). None found.');
+          if (irreversibleConfirmed(CMD)) allow();
+          deny('Irreversible operation (rm -rf / git reset --hard / git clean -fdx / force-push / content-overwrite) requires a fresh op-specific confirmation in .dev953/handoffs.md: a line `CONFIRMED-IRREVERSIBLE: <run_id>:<op-hash>` written by voice for this exact command. None found.');
         }
         // Publish commands require phase==publish (phase check only).
         if (isPublishCommand(CMD)) {

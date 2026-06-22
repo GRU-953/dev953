@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// worktree.mjs — pure-Node port of worktree-new.sh + worktree-rm.sh.
+// worktree.mjs — create and remove isolated scratch worktrees for the engine loop.
 // Subcommands:
 //   new <slug> <n>   Create one isolated scratch worktree off the FROZEN BASE at
 //                    .dev953/work/<slug>/a<n> and print its absolute path on stdout.
@@ -8,10 +8,9 @@
 //   rm  <slug> <n>   Remove the scratch worktree and delete its branch. NO-OP-SAFE:
 //                    an already-removed worktree / already-deleted branch is fine.
 //
-// Run serially by the Orchestrator only. Behaviour preserved exactly from the .sh
-// originals: same sanitize shape, same path guard, same git invocations, same exit
-// codes (usage/guard=2, collision=1, success=0). git chatter goes to stderr; only
-// `new` prints the worktree path to stdout.
+// Run serially by the Orchestrator only. Same sanitize shape, same path guard, same
+// git invocations, same exit codes (usage/guard=2, collision=1, success=0). git
+// chatter goes to stderr; only `new` prints the worktree path to stdout.
 
 import path from 'node:path';
 import fs from 'node:fs';
@@ -20,9 +19,9 @@ import { spawnSync } from 'node:child_process';
 const SANITIZE = /^[A-Za-z0-9_.-]+$/;
 const DIGITS = /^[0-9]+$/;
 
-// Run git with ALL its output routed to stderr (the .sh originals append `>&2` to
-// every mutating git call, so nothing git prints pollutes our stdout — which carries
-// only the worktree path). stdin ignored; both stdout and stderr -> our stderr.
+// Run git with ALL its output routed to stderr, so nothing git prints pollutes our
+// stdout — which carries only the worktree path. stdin ignored; both stdout and
+// stderr -> our stderr.
 function git(args) {
   return spawnSync('git', args, {
     stdio: ['ignore', 2, 2],
@@ -47,11 +46,11 @@ function usageRm() {
 
 function validate(slug, n, label) {
   if (slug === undefined || !SANITIZE.test(slug)) {
-    process.stderr.write(`worktree-${label}.sh: invalid slug\n`);
+    process.stderr.write(`worktree.mjs ${label}: invalid slug\n`);
     process.exit(2);
   }
   if (n === undefined || !DIGITS.test(n)) {
-    process.stderr.write(`worktree-${label}.sh: invalid attempt number\n`);
+    process.stderr.write(`worktree.mjs ${label}: invalid attempt number\n`);
     process.exit(2);
   }
 }
