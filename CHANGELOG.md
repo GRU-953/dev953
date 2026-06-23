@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The plan/test gate (`hooks/gate.mjs`) now stays **inert when no run is active**
-  (no `.dev953/` store present) instead of failing closed, so the plugin can be
-  installed at user/global scope without policing unrelated sessions. All in-run
-  protections are unchanged: once a run's store exists, the gate-marker
-  validation, phase gates, irreversible-op confirmation, and test-before-done
-  block all apply exactly as before — and because `rm -rf .dev953` is itself a
-  gated irreversible op, the store cannot be removed mid-run to reach the
-  pass-through. A missing/corrupt `state.json` while the store exists still fails
-  closed.
+- Both hooks now stay **inert when no run is active** (no `.dev953/` store
+  present) instead of failing closed, so the plugin can be installed at
+  user/global scope without policing unrelated sessions: `hooks/gate.mjs` passes
+  through Edit/Write/Bash/Stop, and `hooks/scan.mjs` passes through pushes, when
+  no store exists. All in-run protections are unchanged: once a run's store
+  exists, the gate-marker validation, phase gates, irreversible-op confirmation,
+  test-before-done block, and the pre-push secret scan all apply exactly as
+  before — and because `rm -rf .dev953` is itself a gated irreversible op, the
+  store cannot be removed mid-run to reach the pass-through. A missing/corrupt
+  `state.json` while the store exists still fails closed.
 
 ## [1.2.0] - 2026-06-23
 

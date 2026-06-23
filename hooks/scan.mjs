@@ -79,8 +79,12 @@ function main() {
   // ---- locate the repo / store -----------------------------------------------
   const STORE = storeDir(); // absolute path to .dev953/ (lib.mjs resolver)
   if (STORE === null) {
-    // No store resolved: cannot prove the push set clean -> fail closed.
-    deny('dev953 scan: not a git work tree; cannot prove the push set is clean');
+    // No .dev953 store anywhere up the tree => no active dev953 run, so this
+    // push is not part of a dev953 publish and is not ours to police. Pass
+    // through — this is what makes a user/global-scope install safe (it never
+    // blocks unrelated pushes). An in-run publish resolves a store, so it is
+    // still scanned below.
+    allow();
   }
   const REPO = path.dirname(STORE); // project root == repo working tree
 
