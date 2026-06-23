@@ -1,9 +1,10 @@
 name: Publish dev953-mcp
 
-# Publishes the MCP companion to npm and the MCP Registry on a version tag (vX.Y.Z).
+# On a version tag (vX.Y.Z): publish the companion to npm + the MCP Registry,
+# build the .mcpb bundle and a source zip, and attach both to the GitHub release.
 # The server is zero-dependency Node, so there is no install/build step.
-# Idempotent: if the version is already on npm, the publish steps are skipped so
-# re-tagging an already-published version is a green no-op.
+# Idempotent: npm/registry publish is skipped when the version is already on npm;
+# the release artifacts are always (re)built and uploaded.
 on:
   push:
     tags: ["v*"]
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # OIDC: proves this repo is under GRU-953 -> may publish io.github.GRU-953/*
-      contents: read
+      contents: write # create/update the GitHub release and upload assets
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -24,6 +25,13 @@ jobs:
         with:
           node-version: "lts/*"
           registry-url: https://registry.npmjs.org
+
+      - name: Resolve version (from manifest)
+        id: ver
+        run: |
+          VER="$(jq -r .version mcp/package.json)"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VER"
 
       - name: Verify versions agree with the tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -38,13 +46,14 @@ jobs:
       - name: Syntax-check the server
         run: node --check mcp/server.mjs
 
+      # ---- npm + MCP Registry (idempotent: skip if this version is already on npm) ----
       - name: Check whether this version is already on npm
         id: check
         run: |
-          VER="$(jq -r .version mcp/package.json)"
+          VER="${{ steps.ver.outputs.version }}"
           if npm view "dev953-mcp@${VER}" version >/dev/null 2>&1; then
             echo "already_published=true" >> "$GITHUB_OUTPUT"
-            echo "dev953-mcp@${VER} already on npm — skipping publish steps."
+            echo "dev953-mcp@${VER} already on npm — skipping npm/registry publish."
           else
             echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
@@ -68,3 +77,28 @@ jobs:
       - name: Publish server to MCP Registry
         if: steps.check.outputs.already_published != 'true'
         run: ./mcp-publisher publish
+
+      # ---- release artifacts (.mcpb + source zip): always (re)built and attached ----
+      - name: Build .mcpb bundle
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          rm -rf build && mkdir build
+          cp mcp/manifest.json mcp/server.mjs mcp/README.md build/
+          npx -y @anthropic-ai/mcpb@latest pack build "dev953-${VER}.mcpb"
+
+      - name: Build source archive
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          git archive --format=zip -o "dev953-${VER}-source.zip" HEAD
+
+      - name: Attach artifacts to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          TAG="v${VER}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "dev953-${VER}.mcpb" "dev953-${VER}-source.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "dev953-${VER}.mcpb" "dev953-${VER}-source.zip" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes
+          fi
