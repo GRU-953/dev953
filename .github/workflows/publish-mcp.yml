@@ -2,6 +2,8 @@ name: Publish dev953-mcp
 
 # Publishes the MCP companion to npm and the MCP Registry on a version tag (vX.Y.Z).
 # The server is zero-dependency Node, so there is no install/build step.
+# Idempotent: if the version is already on npm, the publish steps are skipped so
+# re-tagging an already-published version is a green no-op.
 on:
   push:
     tags: ["v*"]
@@ -35,18 +37,33 @@ jobs:
       - name: Syntax-check the server
         run: node --check mcp/server.mjs
 
+      - name: Check whether this version is already on npm
+        id: check
+        run: |
+          VER="$(jq -r .version mcp/package.json)"
+          if npm view "dev953-mcp@${VER}" version >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "dev953-mcp@${VER} already on npm — skipping publish steps."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish package to npm
+        if: steps.check.outputs.already_published != 'true'
         working-directory: mcp
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install mcp-publisher
+        if: steps.check.outputs.already_published != 'true'
         run: |
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
 
       - name: Authenticate to MCP Registry (GitHub OIDC)
+        if: steps.check.outputs.already_published != 'true'
         run: ./mcp-publisher login github-oidc
 
       - name: Publish server to MCP Registry
+        if: steps.check.outputs.already_published != 'true'
         run: ./mcp-publisher publish
