@@ -26,6 +26,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Verify versions agree with the tag
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
           SJ="$(jq -r .version server.json)"
