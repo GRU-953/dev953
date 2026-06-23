@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.GRU-953/dev953",
+  "description": "dev953 method companion: exposes its multi-agent coding method as callable MCP tools.",
+  "version": "1.2.0",
+  "repository": {
+    "url": "https://github.com/GRU-953/dev953",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "dev953-mcp",
+      "version": "1.2.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

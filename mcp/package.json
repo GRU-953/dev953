@@ -1,0 +1,39 @@
+{
+  "name": "dev953-mcp",
+  "version": "1.2.0",
+  "description": "dev953 method companion — an MCP server exposing dev953's autonomous multi-agent coding METHOD (lifecycle plan, YAGNI ladder, swarm recipe, discipline review, publish checklist) as callable stdio tools. It advises and coordinates; it does not run the swarm.",
+  "type": "module",
+  "bin": {
+    "dev953-mcp": "server.mjs"
+  },
+  "main": "server.mjs",
+  "files": [
+    "server.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "author": "GRU953",
+  "homepage": "https://github.com/GRU-953/dev953#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GRU-953/dev953.git",
+    "directory": "mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/GRU-953/dev953/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "dev953",
+    "claude",
+    "claude-code",
+    "agent",
+    "stdio",
+    "ai-coding"
+  ],
+  "mcpName": "io.github.GRU-953/dev953"
+}

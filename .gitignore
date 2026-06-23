@@ -1,1 +1,12 @@
 .DS_Store
+
+# dev953 runtime store (also self-ignored at creation by store-init)
+.dev953/
+
+# Build artifacts (the .mcpb is attached to GitHub Releases, not committed)
+dist/
+
+# Node
+node_modules/
+*.log
+npm-debug.log*

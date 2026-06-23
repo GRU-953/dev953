@@ -1,0 +1,52 @@
+name: Publish dev953-mcp
+
+# Publishes the MCP companion to npm and the MCP Registry on a version tag (vX.Y.Z).
+# The server is zero-dependency Node, so there is no install/build step.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC: proves this repo is under GRU-953 -> may publish io.github.GRU-953/*
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify versions agree with the tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          SJ="$(jq -r .version server.json)"
+          PK="$(jq -r .version mcp/package.json)"
+          MF="$(jq -r .version mcp/manifest.json)"
+          echo "tag=$TAG server.json=$SJ package.json=$PK manifest.json=$MF"
+          test "$TAG" = "$SJ" && test "$TAG" = "$PK" && test "$TAG" = "$MF"
+
+      - name: Syntax-check the server
+        run: node --check mcp/server.mjs
+
+      - name: Publish package to npm
+        working-directory: mcp
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Authenticate to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish

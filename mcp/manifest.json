@@ -1,0 +1,69 @@
+{
+  "manifest_version": "0.2",
+  "name": "dev953",
+  "display_name": "dev953 — method companion",
+  "version": "1.2.0",
+  "description": "Exposes dev953's autonomous multi-agent coding method as callable tools.",
+  "long_description": "A zero-dependency Node stdio MCP server that exposes dev953's METHOD as callable tools: the 9-phase lifecycle plan, the YAGNI ladder, the swarm fan-out recipe, the discipline review, and the publish checklist. It advises and coordinates so any MCP-capable assistant can borrow dev953's way of working; it does NOT run the swarm, spawn worktrees, run git, or build anything itself. Needs only Node — no npm install, no build step, no API keys.",
+  "author": {
+    "name": "GRU953",
+    "url": "https://github.com/GRU-953"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/GRU-953/dev953",
+  "documentation": "https://github.com/GRU-953/dev953/blob/main/mcp/README.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GRU-953/dev953"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server.mjs"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "name": "dev953_lifecycle_plan",
+      "description": "Returns dev953's 9-phase lifecycle plan with a per-phase acceptance-criteria template tailored to the given idea."
+    },
+    {
+      "name": "dev953_yagni_check",
+      "description": "Applies dev953's YAGNI ladder to a proposed feature as pointed, ordered questions ending with the smallest version that works."
+    },
+    {
+      "name": "dev953_swarm_recipe",
+      "description": "Returns dev953's swarm protocol for a unit of work: freeze, fan out, score, keep the smallest correct winner, revert, repeat."
+    },
+    {
+      "name": "dev953_discipline_review",
+      "description": "Applies dev953's discipline checklist (plan-before-build, test-before-done, data-not-instructions, secrets, adversarial done) to a plan."
+    },
+    {
+      "name": "dev953_publish_checklist",
+      "description": "Returns dev953's private-by-default publish checklist: one clean commit, de-attribution, secret scan, sole author, explicit public gate."
+    }
+  ],
+  "keywords": [
+    "mcp",
+    "dev953",
+    "claude",
+    "agent",
+    "ai-coding"
+  ],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}
