@@ -5,6 +5,20 @@ All notable changes to dev953 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-23
+
+### Changed
+
+- The plan/test gate (`hooks/gate.mjs`) now stays **inert when no run is active**
+  (no `.dev953/` store present) instead of failing closed, so the plugin can be
+  installed at user/global scope without policing unrelated sessions. All in-run
+  protections are unchanged: once a run's store exists, the gate-marker
+  validation, phase gates, irreversible-op confirmation, and test-before-done
+  block all apply exactly as before — and because `rm -rf .dev953` is itself a
+  gated irreversible op, the store cannot be removed mid-run to reach the
+  pass-through. A missing/corrupt `state.json` while the store exists still fails
+  closed.
+
 ## [1.2.0] - 2026-06-23
 
 ### Added
@@ -51,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   memory/coordination store, two safety hooks, and private-by-default
   publishing.
 
+[1.2.1]: https://github.com/GRU953/dev953/compare/v1.2.0...main
 [1.2.0]: https://github.com/GRU953/dev953/releases/tag/v1.2.0
 [1.1.0]: https://github.com/GRU953/dev953/releases/tag/v1.1.0
 [1.0.0]: https://github.com/GRU953/dev953/releases/tag/v1.0.0

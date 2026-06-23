@@ -105,6 +105,21 @@ function main() {
   const STATE = path.join(STORE, 'state.json');
   const PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
+  // --- no active run in this project => do not govern this session -----------
+  // dev953's gate only protects an ACTIVE run. When no .dev953/ store exists
+  // here, there is no run, so the plugin stays fully inert — this is what makes
+  // a user/global-scope install safe: it never polices unrelated sessions.
+  // During a real run the store exists, so the fail-closed gate_marker check and
+  // the phase gates below still apply in full; and because `rm -rf .dev953` is
+  // itself a gated irreversible op, the store cannot be removed mid-run to reach
+  // this pass-through. (A missing/corrupt state.json WHILE the store exists still
+  // fails closed.)
+  try {
+    fs.accessSync(STORE, fs.constants.F_OK);
+  } catch {
+    allow();
+  }
+
   // --- state.json: parse + validate the gate_marker, else fail closed --------
   let STATE_OK = 0;
   let PHASE = '';
